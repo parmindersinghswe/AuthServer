@@ -1,0 +1,3 @@
+namespace Auth.Server.Utilities
+{
+}
