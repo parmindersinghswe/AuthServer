@@ -1,41 +1,54 @@
-﻿using Microsoft.AspNetCore.Http;
-using System.Text;
+﻿using System.Text;
+using Auth.Domain.Utilities;
+using Microsoft.AspNetCore.Http;
+using Auth.Domain.Modals.Configurations;
+using Microsoft.Extensions.Configuration;
 
 namespace Auth.Domain.Middlewares
 {
 	public class RegisterClaims
 	{
 		private readonly RequestDelegate _next;
-		private readonly HttpClient _httpClient;
 		public static bool FirstRender = true;
-		public RegisterClaims(RequestDelegate next, HttpClient httpClient)
+		private readonly IConfiguration _configuration;
+		private  static int _counter = 0;
+        public RegisterClaims(RequestDelegate next, IConfiguration configuration)
 		{
 			_next = next;
-			_httpClient = httpClient;
+			_configuration = configuration; 
 		}
 
 		public async Task InvokeAsync(HttpContext context)
 		{
-			if (FirstRender)
+			if (_counter++>=2 && FirstRender)
 			{
 				FirstRender = false;
 				try
 				{
-					Thread.Sleep(500);
-					var postData = new StringContent(string.Empty, Encoding.UTF8, "application/json");
-					using (var httpClient = new HttpClient())
+					var appSettings = ConfigurationUtility.GetConfigurationSection<Appsettings>("AuthServer", _configuration);
+					if (appSettings != null && appSettings.Permissions != null && !string.IsNullOrEmpty(appSettings.Permissions.CreatePolicyLocalApi))
 					{
-						var httpMessage = new HttpRequestMessage(HttpMethod.Post, "http://localhost:5257/MicroServiceConfigurations/CreatePolicy")
+						var postData = new StringContent(string.Empty, Encoding.UTF8, "application/json");
+						var httpMessage = new HttpRequestMessage(HttpMethod.Post, appSettings.Permissions.CreatePolicyLocalApi)
 						{
 							Content = postData
 						};
-						var response = await _httpClient.SendAsync(httpMessage);
-
+						HttpResponseMessage? response = null;
+						using (var httpClient = new HttpClient())
+						{
+							response = await httpClient.SendAsync(httpMessage);
+							
+						}
+						if (response == null || !response.IsSuccessStatusCode)
+						{
+							return;
+						}
 					}
 				}
-				catch (Exception ex)
+				catch
 				{
 					FirstRender = true;
+					return;
 				}
 			}
 			

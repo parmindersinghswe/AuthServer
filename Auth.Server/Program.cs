@@ -83,10 +83,7 @@ builder.Services.InjectTransiant();
 builder.Services.InjectScopped();
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-var httpClient = new HttpClient();
-httpClient.BaseAddress = new Uri("http://localhost:5273/");
-app.UseMiddleware<AuthorizationMiddleware>(httpClient);
+app.UseMiddleware<AuthorizationMiddleware>();
 if (app.Environment.IsDevelopment())
 {
 	app.UseSwagger();

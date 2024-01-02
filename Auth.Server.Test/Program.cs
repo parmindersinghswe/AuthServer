@@ -1,10 +1,11 @@
 using Auth.Domain.Middlewares;
+using Auth.Domain.Services;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-
+builder.Services.AddScoped<ClaimsService>();
 builder.Services.AddHttpClient();
 builder.Services.AddHttpContextAccessor();
 
@@ -41,12 +42,11 @@ builder.Services.AddSwaggerGen(option =>
 
 
 var app = builder.Build();
-var httpClient = new HttpClient();
-httpClient.BaseAddress = new Uri("http://localhost:5273/");
-app.UseMiddleware<AuthorizationMiddleware>(httpClient);
- httpClient = new HttpClient();
-httpClient.BaseAddress = new Uri("http://localhost:5273/");
-app.UseMiddleware<RegisterClaims>(httpClient);
+
+app.UseMiddleware<RegisterClaims>();
+
+app.UseMiddleware<AuthorizationMiddleware>();
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

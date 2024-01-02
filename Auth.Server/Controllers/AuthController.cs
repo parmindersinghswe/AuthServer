@@ -75,10 +75,10 @@ namespace Auth.Server.Controllers
             if (claims != null && claims.Any())
             {
                 await _userAuthorizationService.AddClaims(claims);
-                foreach (var claim in claims)
-                {
-                    await AddClaimToRole(1, claim, claim);
-                }
+                //foreach (var claim in claims)
+                //{
+                //    await AddClaimToRole(1, claim, claim);
+                //}
                 return Ok();
             }
             return BadRequest();

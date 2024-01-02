@@ -7,7 +7,7 @@ namespace Auth.Server.Test.Controllers
 
 	[ApiController]
 	[Route("[controller]")]
-	[Authorize(policy: "my policey")]
+	[Authorize(policy: "my new Policy 1")]
 	public class WeatherForecastController : ControllerBase
 	{
 		private static readonly string[] Summaries = new[]

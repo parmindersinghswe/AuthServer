@@ -1,20 +1,24 @@
-﻿using Auth.Domain.Attributes;
-using Auth.Domain.Modals.Auth;using Microsoft.AspNetCore.Http;
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using System.Text.Json;
+using Auth.Domain.Utilities;
+using Auth.Domain.Attributes;
+using Auth.Domain.Modals.Auth;
+using Microsoft.AspNetCore.Http;
+using Auth.Domain.Modals.Configurations;
+using Microsoft.Extensions.Configuration;
 
 namespace Auth.Domain.Middlewares
 {
 	public class AuthorizationMiddleware
 	{
 		private readonly RequestDelegate _next;
-		private readonly HttpClient _httpClient;
-
-		public AuthorizationMiddleware(RequestDelegate next, HttpClient httpClient)
+		private readonly IConfiguration _configuration;
+		public AuthorizationMiddleware(RequestDelegate next, IConfiguration configuration)
 		{
 			_next = next;
-			_httpClient = httpClient;
+			_configuration = configuration;
+			
 		}
 
 		public async Task InvokeAsync(HttpContext context)
@@ -23,26 +27,36 @@ namespace Auth.Domain.Middlewares
 
 			if (authAttribute != null)
 			{
-				var permission = authAttribute.Policy;
-				var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
-				if (authHeader == null || !authHeader.StartsWith("Bearer "))
+				HttpResponseMessage validationResponse = null;
+				var appSettings = ConfigurationUtility.GetConfigurationSection<Appsettings>("AuthServer", _configuration);
+				var authCallerApi = appSettings != null && appSettings.AuthorizationSettings != null ? UrlUtility.CoalesceUrls(appSettings.AuthorizationSettings.GatewayUrl, appSettings.AuthorizationSettings.AuthServerUrl) : null;
+				var callerApi = $"{context.Request.Scheme}://{context.Request.Host}";
+				var domainUrl = UrlUtility.CoalesceUrls(authCallerApi, callerApi);
+				if (domainUrl != null)
 				{
-					context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
-					return;
-				}
-				var token = authHeader.Substring("Bearer ".Length);
-				var validateModal = new ValidateModal { Token = token, ClaimType = permission };
-				var postBody = JsonSerializer.Serialize(validateModal);
-				var postData = new StringContent(postBody, Encoding.UTF8, "application/json");
-				var authApi = @"http://localhost:5124/Auth/Validate";//Can be Auth.Server Api OR Auth.Gateway Api
-				var httpMessage = new HttpRequestMessage(HttpMethod.Post, authApi)
-				{
-					Content = postData,
-				};
-				var validationResponse = await _httpClient.SendAsync(httpMessage);
-				// var validationResponse = await _httpClient.GetAsync($"Auth/Validate?token={token}&&permission={permission}");
 
-				if (!validationResponse.IsSuccessStatusCode)
+					var permission = authAttribute.Policy;
+					var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+					if (authHeader == null || !authHeader.StartsWith("Bearer "))
+					{
+						context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
+						return;
+					}
+					var token = authHeader.Substring("Bearer ".Length);
+					var validateModal = new ValidateModal { Token = token, ClaimType = permission };
+					var postBody = JsonSerializer.Serialize(validateModal);
+					var postData = new StringContent(postBody, Encoding.UTF8, "application/json");
+					var authApi = UrlUtility.CombineUrls(domainUrl, "/Auth/Validate");
+					var httpMessage = new HttpRequestMessage(HttpMethod.Post, authApi)
+					{
+						Content = postData,
+					};
+					using (var httpClient = new HttpClient())
+					{
+						validationResponse = await httpClient.SendAsync(httpMessage);
+					}
+				}
+				if (validationResponse == null || !validationResponse.IsSuccessStatusCode)
 				{
 					context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
 					return;

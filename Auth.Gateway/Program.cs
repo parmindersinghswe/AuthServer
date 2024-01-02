@@ -1,4 +1,3 @@
-using Auth.Gateway;
 using Ocelot.DependencyInjection;
 using Ocelot.Middleware;
 
@@ -19,9 +18,6 @@ var app = builder.Build();
 app.UseCors("CORSPolicy");
 app.UseHttpsRedirection();
 app.MapControllers();
-var httpClient = new HttpClient();
-httpClient.BaseAddress = new Uri("http://localhost:5273/");
-app.UseMiddleware<RegisterClaims>(httpClient);
 await app.UseOcelot();
 
 app.MapGet("/", () => "Hello World!");
